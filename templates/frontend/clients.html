@@ -1,0 +1,342 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Clients - Salon Agenda{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Clients</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshClients()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+        <button type="button" class="btn btn-sm btn-salon" data-bs-toggle="modal" data-bs-target="#clientModal">
+            <i class="bi bi-plus-circle"></i> Add Client
+        </button>
+    </div>
+</div>
+
+<div id="alerts"></div>
+
+<!-- Search and Filter -->
+<div class="row mb-3">
+    <div class="col-md-6">
+        <div class="input-group">
+            <span class="input-group-text">
+                <i class="bi bi-search"></i>
+            </span>
+            <input type="text" class="form-control" id="searchInput" placeholder="Search clients...">
+        </div>
+    </div>
+    <div class="col-md-6">
+        <select class="form-select" id="statusFilter">
+            <option value="">All Clients</option>
+            <option value="true">Active Only</option>
+            <option value="false">Inactive Only</option>
+        </select>
+    </div>
+</div>
+
+<!-- Clients Table -->
+<div class="card">
+    <div class="card-body">
+        <div id="clients-table-container">
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Client Modal -->
+<div class="modal fade" id="clientModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="clientModalTitle">Add Client</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="clientForm">
+                <div class="modal-body">
+                    <input type="hidden" id="clientId">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clientName" class="form-label">Name *</label>
+                                <input type="text" class="form-control" id="clientName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clientEmail" class="form-label">Email *</label>
+                                <input type="email" class="form-control" id="clientEmail" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clientPhone" class="form-label">Phone *</label>
+                                <input type="tel" class="form-control" id="clientPhone" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clientCpf" class="form-label">CPF *</label>
+                                <input type="text" class="form-control" id="clientCpf" required maxlength="11" placeholder="Only numbers">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="clientAddress" class="form-label">Address</label>
+                        <textarea class="form-control" id="clientAddress" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clientBirthDate" class="form-label">Birth Date</label>
+                                <input type="date" class="form-control" id="clientBirthDate">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clientActive" class="form-label">Status</label>
+                                <select class="form-select" id="clientActive">
+                                    <option value="true">Active</option>
+                                    <option value="false">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="clientNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="clientNotes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-salon">
+                        <span class="save-text">Save Client</span>
+                        <span class="loading-text d-none">
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            Saving...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let clients = [];
+    let editingClientId = null;
+
+    // Load clients
+    function loadClients() {
+        const search = $('#searchInput').val();
+        const isActive = $('#statusFilter').val();
+        
+        let params = {};
+        if (search) params.search = search;
+        if (isActive) params.is_active = isActive;
+        
+        $.ajax({
+            url: API_BASE_URL + '/clients/',
+            method: 'GET',
+            data: params,
+            success: function(data) {
+                clients = data.results || data;
+                displayClients(clients);
+            },
+            error: function() {
+                $('#clients-table-container').html(
+                    '<div class="alert alert-danger">Failed to load clients</div>'
+                );
+            }
+        });
+    }
+
+    // Display clients table
+    function displayClients(clientList) {
+        const container = $('#clients-table-container');
+        
+        if (clientList.length === 0) {
+            container.html('<div class="text-muted text-center">No clients found</div>');
+            return;
+        }
+
+        let html = '<div class="table-responsive"><table class="table table-hover">';
+        html += '<thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>CPF</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+
+        clientList.forEach(client => {
+            const statusBadge = client.is_active ? 
+                '<span class="badge bg-success">Active</span>' : 
+                '<span class="badge bg-secondary">Inactive</span>';
+            
+            html += `
+                <tr>
+                    <td>${client.name}</td>
+                    <td>${client.email}</td>
+                    <td>${client.phone}</td>
+                    <td>${client.cpf}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editClient('${client.id}')">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteClient('${client.id}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table></div>';
+        container.html(html);
+    }
+
+    // Edit client
+    function editClient(clientId) {
+        const client = clients.find(c => c.id === clientId);
+        if (!client) return;
+
+        editingClientId = clientId;
+        $('#clientModalTitle').text('Edit Client');
+        
+        $('#clientId').val(client.id);
+        $('#clientName').val(client.name);
+        $('#clientEmail').val(client.email);
+        $('#clientPhone').val(client.phone);
+        $('#clientCpf').val(client.cpf);
+        $('#clientAddress').val(client.address || '');
+        $('#clientBirthDate').val(client.birth_date || '');
+        $('#clientActive').val(client.is_active.toString());
+        $('#clientNotes').val(client.notes || '');
+        
+        $('#clientModal').modal('show');
+    }
+
+    // Delete client
+    function deleteClient(clientId) {
+        const client = clients.find(c => c.id === clientId);
+        if (!client) return;
+
+        if (confirm(`Are you sure you want to delete ${client.name}?`)) {
+            $.ajax({
+                url: API_BASE_URL + '/clients/' + clientId + '/',
+                method: 'DELETE',
+                success: function() {
+                    showAlert('Client deleted successfully', 'success');
+                    loadClients();
+                },
+                error: function() {
+                    showAlert('Failed to delete client', 'danger');
+                }
+            });
+        }
+    }
+
+    // Save client
+    $('#clientForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            name: $('#clientName').val(),
+            email: $('#clientEmail').val(),
+            phone: $('#clientPhone').val(),
+            cpf: $('#clientCpf').val(),
+            address: $('#clientAddress').val(),
+            birth_date: $('#clientBirthDate').val() || null,
+            is_active: $('#clientActive').val() === 'true',
+            notes: $('#clientNotes').val()
+        };
+
+        // Show loading state
+        $('.save-text').addClass('d-none');
+        $('.loading-text').removeClass('d-none');
+        $('#clientForm button[type="submit"]').prop('disabled', true);
+
+        const url = editingClientId ? 
+            API_BASE_URL + '/clients/' + editingClientId + '/' : 
+            API_BASE_URL + '/clients/';
+        const method = editingClientId ? 'PUT' : 'POST';
+
+        $.ajax({
+            url: url,
+            method: method,
+            data: JSON.stringify(formData),
+            contentType: 'application/json',
+            success: function() {
+                $('#clientModal').modal('hide');
+                showAlert(editingClientId ? 'Client updated successfully' : 'Client created successfully', 'success');
+                loadClients();
+                resetForm();
+            },
+            error: function(xhr) {
+                let message = 'Failed to save client';
+                if (xhr.responseJSON) {
+                    const errors = Object.values(xhr.responseJSON).flat();
+                    message = errors.join(', ');
+                }
+                showAlert(message, 'danger');
+            },
+            complete: function() {
+                // Hide loading state
+                $('.save-text').removeClass('d-none');
+                $('.loading-text').addClass('d-none');
+                $('#clientForm button[type="submit"]').prop('disabled', false);
+            }
+        });
+    });
+
+    // Reset form
+    function resetForm() {
+        editingClientId = null;
+        $('#clientModalTitle').text('Add Client');
+        $('#clientForm')[0].reset();
+        $('#clientActive').val('true');
+    }
+
+    // Refresh clients
+    function refreshClients() {
+        loadClients();
+        showAlert('Clients refreshed', 'success');
+    }
+
+    // Search functionality
+    $('#searchInput').on('input', function() {
+        clearTimeout(this.searchTimeout);
+        this.searchTimeout = setTimeout(() => {
+            loadClients();
+        }, 500);
+    });
+
+    // Filter functionality
+    $('#statusFilter').on('change', function() {
+        loadClients();
+    });
+
+    // Reset form when modal is hidden
+    $('#clientModal').on('hidden.bs.modal', function() {
+        resetForm();
+    });
+
+    // Initialize
+    $(document).ready(function() {
+        loadClients();
+    });
+</script>
+{% endblock %}
+

@@ -1,0 +1,256 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Dashboard - Salon Agenda{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshStats()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="alerts"></div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Clients
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-clients">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-people fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Professionals
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-professionals">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-person-badge fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Today's Appointments
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="today-appointments">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-calendar-check fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Pending Today
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="pending-appointments">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-clock fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Today's Appointments -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Today's Appointments</h6>
+                <a href="{% url 'frontend:appointments' %}" class="btn btn-sm btn-primary">
+                    View All
+                </a>
+            </div>
+            <div class="card-body">
+                <div id="today-appointments-list">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'frontend:appointments' %}" class="btn btn-salon">
+                        <i class="bi bi-plus-circle"></i> New Appointment
+                    </a>
+                    <a href="{% url 'frontend:clients' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-person-plus"></i> Add Client
+                    </a>
+                    <a href="{% url 'frontend:professionals' %}" class="btn btn-outline-success">
+                        <i class="bi bi-person-badge"></i> Add Professional
+                    </a>
+                    <a href="{% url 'frontend:services' %}" class="btn btn-outline-info">
+                        <i class="bi bi-list-check"></i> Manage Services
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Status Overview</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="border-end">
+                            <div class="h4 mb-0 text-success" id="completed-today">
+                                <span class="spinner-border spinner-border-sm"></span>
+                            </div>
+                            <small class="text-muted">Completed</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="h4 mb-0 text-warning" id="pending-today">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </div>
+                        <small class="text-muted">Pending</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Load dashboard data
+    function loadDashboardData() {
+        // Load stats
+        $.ajax({
+            url: API_BASE_URL + '/dashboard/stats/',
+            method: 'GET',
+            success: function(data) {
+                $('#total-clients').text(data.total_clients);
+                $('#total-professionals').text(data.total_professionals);
+                $('#today-appointments').text(data.today_appointments);
+                $('#pending-appointments').text(data.pending_appointments);
+                $('#completed-today').text(data.completed_appointments);
+                $('#pending-today').text(data.pending_appointments);
+            },
+            error: function() {
+                showAlert('Failed to load dashboard statistics', 'warning');
+            }
+        });
+
+        // Load today's appointments
+        loadTodayAppointments();
+    }
+
+    function loadTodayAppointments() {
+        const today = new Date().toISOString().split('T')[0];
+        
+        $.ajax({
+            url: API_BASE_URL + '/appointments/',
+            method: 'GET',
+            data: { date: today },
+            success: function(data) {
+                displayTodayAppointments(data.results || data);
+            },
+            error: function() {
+                $('#today-appointments-list').html(
+                    '<div class="alert alert-warning">Failed to load today\'s appointments</div>'
+                );
+            }
+        });
+    }
+
+    function displayTodayAppointments(appointments) {
+        const container = $('#today-appointments-list');
+        
+        if (appointments.length === 0) {
+            container.html('<div class="text-muted text-center">No appointments scheduled for today</div>');
+            return;
+        }
+
+        let html = '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>Time</th><th>Client</th><th>Professional</th><th>Service</th><th>Status</th></tr></thead><tbody>';
+
+        appointments.forEach(appointment => {
+            const statusClass = `badge-status-${appointment.status}`;
+            html += `
+                <tr>
+                    <td>${formatTime(appointment.scheduled_time)}</td>
+                    <td>${appointment.client_name}</td>
+                    <td>${appointment.professional_name}</td>
+                    <td>${appointment.service_name}</td>
+                    <td><span class="badge ${statusClass}">${appointment.status_display || appointment.status}</span></td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table></div>';
+        container.html(html);
+    }
+
+    function refreshStats() {
+        loadDashboardData();
+        showAlert('Dashboard refreshed', 'success');
+    }
+
+    // Initialize dashboard
+    $(document).ready(function() {
+        loadDashboardData();
+    });
+</script>
+{% endblock %}
+

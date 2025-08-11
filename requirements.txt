@@ -1,0 +1,17 @@
+argcomplete==3.6.2
+asgiref==3.9.1
+click==8.2.1
+Django==5.2.5
+django-cors-headers==4.7.0
+djangorestframework==3.16.1
+djangorestframework_simplejwt==5.5.1
+packaging==25.0
+platformdirs==4.3.8
+PyJWT==2.10.1
+sqlparse==0.5.3
+userpath==1.9.2
+
+Flask==2.3.3
+requests==2.31.0
+Werkzeug==2.3.7
+

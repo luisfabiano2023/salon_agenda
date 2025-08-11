@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Salon Agenda</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --salon-primary: #8B5A96;
+            --salon-secondary: #D4A5D8;
+            --salon-accent: #F8E8FF;
+            --salon-dark: #4A2C54;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--salon-primary) 0%, var(--salon-dark) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+        
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: none;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-salon {
+            background-color: var(--salon-primary);
+            border-color: var(--salon-primary);
+            color: white;
+        }
+        
+        .btn-salon:hover {
+            background-color: var(--salon-dark);
+            border-color: var(--salon-dark);
+            color: white;
+        }
+        
+        .form-control:focus {
+            border-color: var(--salon-secondary);
+            box-shadow: 0 0 0 0.2rem rgba(139, 90, 150, 0.25);
+        }
+        
+        .salon-logo {
+            color: var(--salon-primary);
+            font-size: 3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4">
+                <div class="card login-card">
+                    <div class="card-body p-5">
+                        <div class="text-center mb-4">
+                            <i class="bi bi-scissors salon-logo"></i>
+                            <h2 class="mt-3 mb-1">Salon Agenda</h2>
+                            <p class="text-muted">Receptionist Login</p>
+                        </div>
+                        
+                        <div id="alerts"></div>
+                        
+                        <form id="loginForm">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-envelope"></i>
+                                    </span>
+                                    <input type="email" class="form-control" id="email" name="email" required>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="password" class="form-label">Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-lock"></i>
+                                    </span>
+                                    <input type="password" class="form-control" id="password" name="password" required>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-salon w-100 py-2">
+                                <span class="login-text">Login</span>
+                                <span class="loading-text d-none">
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    Logging in...
+                                </span>
+                            </button>
+                        </form>
+                        
+                        <div class="text-center mt-4">
+                            <small class="text-muted">
+                                Demo credentials:<br>
+                                Email: admin@salon.com<br>
+                                Password: admin123
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <script>
+        const API_BASE_URL = '/api';
+        
+        // Show alert
+        function showAlert(message, type = 'danger') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            $('#alerts').html(alertHtml);
+        }
+        
+        // Check if already logged in
+        $(document).ready(function() {
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                window.location.href = '/';
+            }
+        });
+        
+        // Handle login form submission
+        $('#loginForm').on('submit', function(e) {
+            e.preventDefault();
+            
+            const email = $('#email').val();
+            const password = $('#password').val();
+            
+            // Show loading state
+            $('.login-text').addClass('d-none');
+            $('.loading-text').removeClass('d-none');
+            $('#loginForm button').prop('disabled', true);
+            
+            $.ajax({
+                url: API_BASE_URL + '/auth/login/',
+                method: 'POST',
+                data: {
+                    email: email,
+                    password: password
+                },
+                success: function(response) {
+                    // Store tokens and user data
+                    localStorage.setItem('access_token', response.access);
+                    localStorage.setItem('refresh_token', response.refresh);
+                    localStorage.setItem('user_data', JSON.stringify(response.user));
+                    
+                    // Redirect to dashboard
+                    window.location.href = '/';
+                },
+                error: function(xhr) {
+                    let message = 'Login failed. Please try again.';
+                    
+                    if (xhr.responseJSON) {
+                        if (xhr.responseJSON.non_field_errors) {
+                            message = xhr.responseJSON.non_field_errors[0];
+                        } else if (xhr.responseJSON.detail) {
+                            message = xhr.responseJSON.detail;
+                        }
+                    }
+                    
+                    showAlert(message);
+                },
+                complete: function() {
+                    // Hide loading state
+                    $('.login-text').removeClass('d-none');
+                    $('.loading-text').addClass('d-none');
+                    $('#loginForm button').prop('disabled', false);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

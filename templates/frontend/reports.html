@@ -1,0 +1,575 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Reports - Salon Agenda{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-card {
+        transition: transform 0.2s;
+    }
+    
+    .report-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .metric-card {
+        background: linear-gradient(135deg, var(--salon-primary) 0%, var(--salon-dark) 100%);
+        color: white;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 400px;
+        width: 100%;
+    }
+    
+    .date-range-picker {
+        background: var(--salon-accent);
+        border: 1px solid var(--salon-secondary);
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Service Reports</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportReport()">
+                <i class="bi bi-download"></i> Export
+            </button>
+        </div>
+        <button type="button" class="btn btn-sm btn-salon" onclick="refreshReports()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<div id="alerts"></div>
+
+<!-- Date Range Filter -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="date-range-picker">
+            <div class="row align-items-end">
+                <div class="col-md-3">
+                    <label for="startDate" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDate">
+                </div>
+                <div class="col-md-3">
+                    <label for="endDate" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDate">
+                </div>
+                <div class="col-md-3">
+                    <label for="professionalFilter" class="form-label">Professional</label>
+                    <select class="form-select" id="professionalFilter">
+                        <option value="">All Professionals</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="button" class="btn btn-salon w-100" onclick="generateReport()">
+                        <i class="bi bi-bar-chart"></i> Generate Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row mb-4" id="quickStatsRow">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">
+                            Total Services
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white" id="totalServices">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-check-circle fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">
+                            Total Revenue
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white" id="totalRevenue">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-currency-dollar fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">
+                            Average Price
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white" id="averagePrice">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-graph-up fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">
+                            Total Hours
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white" id="totalHours">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-clock fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts and Tables -->
+<div class="row">
+    <!-- Services by Type Chart -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow report-card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Services by Type</h6>
+            </div>
+            <div class="card-body position-relative">
+                <div id="servicesTypeChart" class="chart-container">
+                    <div class="loading-overlay">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Professional Performance Chart -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow report-card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Professional Performance</h6>
+            </div>
+            <div class="card-body position-relative">
+                <div id="professionalChart" class="chart-container">
+                    <div class="loading-overlay">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Daily Breakdown -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card shadow report-card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Daily Breakdown</h6>
+            </div>
+            <div class="card-body position-relative">
+                <div id="dailyChart" class="chart-container">
+                    <div class="loading-overlay">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Services Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow report-card">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Top Services</h6>
+            </div>
+            <div class="card-body">
+                <div id="topServicesTable">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js for visualizations -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    let currentReportData = null;
+    let charts = {};
+
+    // Initialize page
+    $(document).ready(function() {
+        initializeDateRange();
+        loadProfessionals();
+        generateReport();
+    });
+
+    function initializeDateRange() {
+        // Set default date range to current month
+        const today = new Date();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        
+        $('#startDate').val(firstDay.toISOString().split('T')[0]);
+        $('#endDate').val(today.toISOString().split('T')[0]);
+    }
+
+    function loadProfessionals() {
+        $.ajax({
+            url: API_BASE_URL + '/professionals/',
+            method: 'GET',
+            success: function(data) {
+                const professionals = data.results || data;
+                const select = $('#professionalFilter');
+                
+                professionals.forEach(professional => {
+                    select.append(`<option value="${professional.id}">${professional.name}</option>`);
+                });
+            },
+            error: function() {
+                console.error('Failed to load professionals');
+            }
+        });
+    }
+
+    function generateReport() {
+        const startDate = $('#startDate').val();
+        const endDate = $('#endDate').val();
+        const professionalId = $('#professionalFilter').val();
+
+        if (!startDate || !endDate) {
+            showAlert('Please select both start and end dates', 'warning');
+            return;
+        }
+
+        // Show loading state
+        showLoadingState();
+
+        // Build query parameters
+        let params = {
+            start_date: startDate,
+            end_date: endDate
+        };
+
+        if (professionalId) {
+            params.professional_id = professionalId;
+        }
+
+        // Load completed services report
+        $.ajax({
+            url: API_BASE_URL + '/reports/completed-services/',
+            method: 'GET',
+            data: params,
+            success: function(data) {
+                currentReportData = data;
+                updateReportDisplay(data);
+                hideLoadingState();
+            },
+            error: function(xhr) {
+                hideLoadingState();
+                let message = 'Failed to generate report';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    message = xhr.responseJSON.error;
+                }
+                showAlert(message, 'danger');
+            }
+        });
+    }
+
+    function updateReportDisplay(data) {
+        // Update summary metrics
+        $('#totalServices').text(data.summary.total_services.toLocaleString());
+        $('#totalRevenue').text('R$ ' + data.summary.total_revenue.toLocaleString('pt-BR', {minimumFractionDigits: 2}));
+        $('#averagePrice').text('R$ ' + data.summary.average_price.toLocaleString('pt-BR', {minimumFractionDigits: 2}));
+        $('#totalHours').text(data.summary.total_duration_hours.toLocaleString() + 'h');
+
+        // Update charts
+        updateServicesTypeChart(data.services_by_type);
+        updateProfessionalChart(data.services_by_professional);
+        updateDailyChart(data.daily_breakdown);
+        updateTopServicesTable(data.services_by_type);
+    }
+
+    function updateServicesTypeChart(servicesData) {
+        const ctx = document.getElementById('servicesTypeChart');
+        
+        // Destroy existing chart
+        if (charts.servicesType) {
+            charts.servicesType.destroy();
+        }
+
+        // Clear loading overlay
+        $('#servicesTypeChart .loading-overlay').hide();
+
+        if (servicesData.length === 0) {
+            $('#servicesTypeChart').html('<div class="text-center text-muted">No data available</div>');
+            return;
+        }
+
+        charts.servicesType = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: servicesData.map(item => item.service_type__name),
+                datasets: [{
+                    data: servicesData.map(item => item.count),
+                    backgroundColor: [
+                        '#8B5A96', '#D4A5D8', '#F8E8FF', '#4A2C54', '#B87FC7',
+                        '#E6C7F0', '#9B6BA8', '#C294D1', '#F0D9F7', '#6B4C7A'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    function updateProfessionalChart(professionalData) {
+        const ctx = document.getElementById('professionalChart');
+        
+        // Destroy existing chart
+        if (charts.professional) {
+            charts.professional.destroy();
+        }
+
+        // Clear loading overlay
+        $('#professionalChart .loading-overlay').hide();
+
+        if (professionalData.length === 0) {
+            $('#professionalChart').html('<div class="text-center text-muted">No data available</div>');
+            return;
+        }
+
+        charts.professional = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: professionalData.map(item => item.professional__name),
+                datasets: [{
+                    label: 'Services Completed',
+                    data: professionalData.map(item => item.count),
+                    backgroundColor: '#8B5A96',
+                    borderColor: '#4A2C54',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    function updateDailyChart(dailyData) {
+        const ctx = document.getElementById('dailyChart');
+        
+        // Destroy existing chart
+        if (charts.daily) {
+            charts.daily.destroy();
+        }
+
+        // Clear loading overlay
+        $('#dailyChart .loading-overlay').hide();
+
+        if (dailyData.length === 0) {
+            $('#dailyChart').html('<div class="text-center text-muted">No data available</div>');
+            return;
+        }
+
+        charts.daily = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dailyData.map(item => formatDate(item.scheduled_date)),
+                datasets: [{
+                    label: 'Services Completed',
+                    data: dailyData.map(item => item.count),
+                    borderColor: '#8B5A96',
+                    backgroundColor: 'rgba(139, 90, 150, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }, {
+                    label: 'Revenue (R$)',
+                    data: dailyData.map(item => item.revenue),
+                    borderColor: '#D4A5D8',
+                    backgroundColor: 'rgba(212, 165, 216, 0.1)',
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    }
+                }
+            }
+        });
+    }
+
+    function updateTopServicesTable(servicesData) {
+        const container = $('#topServicesTable');
+        
+        if (servicesData.length === 0) {
+            container.html('<div class="text-center text-muted">No services found</div>');
+            return;
+        }
+
+        let html = '<div class="table-responsive"><table class="table table-hover">';
+        html += '<thead><tr><th>Service</th><th>Count</th><th>Revenue</th><th>Avg Duration</th></tr></thead><tbody>';
+
+        servicesData.forEach(service => {
+            html += `
+                <tr>
+                    <td>${service.service_type__name}</td>
+                    <td>${service.count}</td>
+                    <td>R$ ${service.revenue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    <td>${Math.round(service.avg_duration)} min</td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table></div>';
+        container.html(html);
+    }
+
+    function showLoadingState() {
+        $('#quickStatsRow .spinner-border').show();
+        $('.loading-overlay').show();
+    }
+
+    function hideLoadingState() {
+        $('#quickStatsRow .spinner-border').hide();
+        $('.loading-overlay').hide();
+    }
+
+    function refreshReports() {
+        generateReport();
+        showAlert('Reports refreshed', 'success');
+    }
+
+    function exportReport() {
+        if (!currentReportData) {
+            showAlert('No report data to export', 'warning');
+            return;
+        }
+
+        // Create CSV content
+        let csv = 'Service Report\n\n';
+        csv += `Period: ${currentReportData.summary.period.start_date} to ${currentReportData.summary.period.end_date}\n\n`;
+        csv += 'Summary:\n';
+        csv += `Total Services,${currentReportData.summary.total_services}\n`;
+        csv += `Total Revenue,${currentReportData.summary.total_revenue}\n`;
+        csv += `Average Price,${currentReportData.summary.average_price}\n`;
+        csv += `Total Hours,${currentReportData.summary.total_duration_hours}\n\n`;
+        
+        csv += 'Services by Type:\n';
+        csv += 'Service,Count,Revenue\n';
+        currentReportData.services_by_type.forEach(service => {
+            csv += `${service.service_type__name},${service.count},${service.revenue}\n`;
+        });
+
+        // Download CSV
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `salon_report_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('pt-BR');
+    }
+</script>
+{% endblock %}
+

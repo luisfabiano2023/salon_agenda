@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Salon Agenda{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --salon-primary: #8B5A96;
+            --salon-secondary: #D4A5D8;
+            --salon-accent: #F8E8FF;
+            --salon-dark: #4A2C54;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--salon-accent) 0%, #fff 100%);
+            min-height: 100vh;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            color: var(--salon-primary) !important;
+        }
+        
+        .btn-salon {
+            background-color: var(--salon-primary);
+            border-color: var(--salon-primary);
+            color: white;
+        }
+        
+        .btn-salon:hover {
+            background-color: var(--salon-dark);
+            border-color: var(--salon-dark);
+            color: white;
+        }
+        
+        .card {
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .sidebar {
+            background: linear-gradient(180deg, var(--salon-primary) 0%, var(--salon-dark) 100%);
+            min-height: calc(100vh - 56px);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0.75rem 1rem;
+            border-radius: 0.375rem;
+            margin: 0.25rem 0;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .table th {
+            background-color: var(--salon-secondary);
+            color: var(--salon-dark);
+            border: none;
+        }
+        
+        .badge-status-scheduled {
+            background-color: #ffc107;
+        }
+        
+        .badge-status-completed {
+            background-color: #198754;
+        }
+        
+        .badge-status-cancelled {
+            background-color: #dc3545;
+        }
+        
+        .badge-status-in_progress {
+            background-color: #0d6efd;
+        }
+        
+        .badge-status-no_show {
+            background-color: #6c757d;
+        }
+        
+        .loading {
+            display: none;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'frontend:dashboard' %}">
+                <i class="bi bi-scissors"></i> Salon Agenda
+            </a>
+            
+            <div class="navbar-nav ms-auto" id="user-nav" style="display: none;">
+                <span class="navbar-text me-3">
+                    Welcome, <span id="user-name"></span>
+                </span>
+                <button class="btn btn-outline-danger btn-sm" onclick="logout()">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse" id="sidebar" style="display: none;">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'frontend:dashboard' %}">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'frontend:appointments' %}">
+                                <i class="bi bi-calendar-check"></i> Appointments
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'frontend:clients' %}">
+                                <i class="bi bi-people"></i> Clients
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'frontend:professionals' %}">
+                                <i class="bi bi-person-badge"></i> Professionals
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'frontend:services' %}">
+                                <i class="bi bi-list-check"></i> Services
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'frontend:reports' %}">
+                                <i class="bi bi-bar-chart"></i> Reports
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="pt-3 pb-2 mb-3">
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 mb-0">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Common JavaScript -->
+    <script>
+        // API Configuration
+        const API_BASE_URL = '/api';
+        let authToken = localStorage.getItem('access_token');
+        
+        // Common AJAX setup
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (authToken && !settings.url.includes('/auth/login/')) {
+                    xhr.setRequestHeader('Authorization', 'Bearer ' + authToken);
+                }
+                xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+            }
+        });
+        
+        // Get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Check authentication
+        function checkAuth() {
+            const token = localStorage.getItem('access_token');
+            const user = localStorage.getItem('user_data');
+            
+            if (token && user) {
+                const userData = JSON.parse(user);
+                $('#user-name').text(userData.first_name || userData.email);
+                $('#user-nav').show();
+                $('#sidebar').show();
+                return true;
+            } else {
+                if (window.location.pathname !== '/login/') {
+                    window.location.href = '/login/';
+                }
+                return false;
+            }
+        }
+        
+        // Logout function
+        function logout() {
+            const refreshToken = localStorage.getItem('refresh_token');
+            
+            if (refreshToken) {
+                $.ajax({
+                    url: API_BASE_URL + '/auth/logout/',
+                    method: 'POST',
+                    data: { refresh: refreshToken },
+                    success: function() {
+                        localStorage.clear();
+                        window.location.href = '/login/';
+                    },
+                    error: function() {
+                        localStorage.clear();
+                        window.location.href = '/login/';
+                    }
+                });
+            } else {
+                localStorage.clear();
+                window.location.href = '/login/';
+            }
+        }
+        
+        // Show loading
+        function showLoading() {
+            $('#loadingModal').modal('show');
+        }
+        
+        // Hide loading
+        function hideLoading() {
+            $('#loadingModal').modal('hide');
+        }
+        
+        // Show alert
+        function showAlert(message, type = 'info') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            $('#alerts').html(alertHtml);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                $('.alert').alert('close');
+            }, 5000);
+        }
+        
+        // Format date
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+        
+        // Format time
+        function formatTime(timeString) {
+            const time = new Date('2000-01-01T' + timeString);
+            return time.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        // Initialize page
+        $(document).ready(function() {
+            // Check authentication on page load
+            if (window.location.pathname !== '/login/') {
+                checkAuth();
+            }
+            
+            // Set active nav link
+            const currentPath = window.location.pathname;
+            $('.sidebar .nav-link').each(function() {
+                if ($(this).attr('href') === currentPath) {
+                    $(this).addClass('active');
+                }
+            });
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+
